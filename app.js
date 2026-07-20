@@ -4,7 +4,7 @@
 'use strict';
 
 /* ---------------- state ---------------- */
-const APP_VERSION = 'v5';
+const APP_VERSION = 'v6';
 const LS_KEY = 'pt_state_v2';
 
 function freshState(){
@@ -630,7 +630,11 @@ $('#btn-pull').onclick=async()=>{
   }catch(e){ toast('Erro: '+e.message,'err'); }
 };
 $('#btn-push').onclick=async()=>{
-  if(!(await confirmBox('Enviar para a planilha SOBRESCREVE as linhas da aba Tarefas com os dados do app. Continuar?'))) return;
+  /* recarrega o estado salvo antes de enviar — evita mandar dados velhos
+     se outra aba/janela editou depois desta */
+  const fresh=loadState();
+  if(fresh){ S=fresh; renderAll(); }
+  if(!(await confirmBox(`Enviar ${S.tasks.length} tarefas para a planilha? Isso SOBRESCREVE as linhas da aba Tarefas.`))) return;
   try{
     toast('Enviando...');
     const j=await api({action:'push', tasks:S.tasks});
@@ -682,6 +686,18 @@ $$('.tab').forEach(b=>b.onclick=()=>{
   renderAll();
 });
 $('#fab').onclick=()=>openTaskModal(null, cal.sel);
+
+/* ---------------- sincronia entre abas/janelas do mesmo navegador ---------------- */
+window.addEventListener('storage', ev=>{
+  if(ev.key===LS_KEY && ev.newValue){
+    try{ S=JSON.parse(ev.newValue); renderAll(); }catch(_){}
+  }
+});
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) return;
+  const f=loadState();
+  if(f && JSON.stringify(f.tasks)!==JSON.stringify(S.tasks)){ S=f; renderAll(); }
+});
 
 /* ---------------- render ---------------- */
 function renderAll(){
