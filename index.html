@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Planejamento HD</title>
+<meta name="theme-color" content="#F6F4EE">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-leaf">❧</span>
+    <h1>Planejamento <em>HD</em></h1>
+  </div>
+  <button class="icon-btn" id="btn-sync" title="Sincronizar" aria-label="Sincronizar">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2"/><polyline points="21 3 21 9 15 9"/><polyline points="3 21 3 15 9 15"/></svg>
+    <span class="sync-dot" id="sync-dot" hidden></span>
+  </button>
+</header>
+
+<div class="filterbar" id="filterbar">
+  <div class="chips" id="status-chips"></div>
+  <div class="filter-row2">
+    <select id="f-proj" class="sel"><option value="">Todos os projetos</option></select>
+    <input type="search" id="f-q" class="inp" placeholder="Buscar tarefa...">
+  </div>
+</div>
+
+<main>
+  <!-- ============ SCREEN 1 : CALENDAR ============ -->
+  <section id="view-cal" class="view">
+    <div class="cal-head">
+      <button class="icon-btn" id="cal-prev" aria-label="Mês anterior">‹</button>
+      <button class="cal-title" id="cal-title" title="Ir para hoje"></button>
+      <button class="icon-btn" id="cal-next" aria-label="Próximo mês">›</button>
+    </div>
+    <div class="cal-dow" id="cal-dow"></div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="daylist-head" id="daylist-head"></div>
+    <div class="tasklist" id="cal-list"></div>
+  </section>
+
+  <!-- ============ SCREEN 2 : TABLE ============ -->
+  <section id="view-table" class="view" hidden>
+    <div class="zoomctl">
+      <button id="zoom-out" aria-label="Diminuir zoom">A−</button>
+      <span id="zoom-val">100%</span>
+      <button id="zoom-in" aria-label="Aumentar zoom">A+</button>
+    </div>
+    <div class="table-wrap" id="table-wrap">
+      <table id="ttable">
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<button class="fab" id="fab" aria-label="Adicionar tarefa">+</button>
+
+<nav class="tabs">
+  <button class="tab active" data-view="cal">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <span>Calendário</span>
+  </button>
+  <button class="tab" data-view="table">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="10" y1="3" x2="10" y2="21"/></svg>
+    <span>Tarefas</span>
+  </button>
+</nav>
+
+<!-- ============ MODALS ============ -->
+<div class="overlay" id="overlay" hidden></div>
+
+<div class="sheet" id="sheet-task" hidden>
+  <div class="sheet-grab"></div>
+  <h2 id="task-modal-title">Tarefa</h2>
+  <form id="task-form"></form>
+  <div class="sheet-actions">
+    <button class="btn danger" id="task-delete" type="button">Excluir</button>
+    <div class="spacer"></div>
+    <button class="btn ghost" data-close type="button">Cancelar</button>
+    <button class="btn primary" id="task-save" type="button">Salvar</button>
+  </div>
+</div>
+
+<div class="sheet small" id="sheet-cell" hidden>
+  <div class="sheet-grab"></div>
+  <h2 id="cell-title"></h2>
+  <div id="cell-editor"></div>
+  <div class="sheet-actions">
+    <button class="btn ghost" data-close type="button">Cancelar</button>
+    <button class="btn primary" id="cell-save" type="button">Salvar</button>
+  </div>
+</div>
+
+<div class="sheet small" id="sheet-row" hidden>
+  <div class="sheet-grab"></div>
+  <h2 id="row-title">Linha</h2>
+  <div class="row-actions">
+    <button class="btn wide" id="row-above">⬆ Adicionar acima</button>
+    <button class="btn wide" id="row-below">⬇ Adicionar abaixo</button>
+    <button class="btn wide" id="row-dup">⧉ Duplicar</button>
+    <button class="btn wide danger" id="row-del">✕ Excluir linha</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet-sync" hidden>
+  <div class="sheet-grab"></div>
+  <h2>Sincronizar com o Google Sheets</h2>
+  <label class="lbl">URL do Apps Script (Web App)</label>
+  <input class="inp" id="sync-url" placeholder="https://script.google.com/macros/s/.../exec">
+  <p class="hint" id="sync-info"></p>
+  <div class="sync-btns">
+    <button class="btn wide" id="btn-pull">⬇ Baixar da planilha</button>
+    <button class="btn wide primary" id="btn-push">⬆ Enviar para a planilha</button>
+  </div>
+  <div class="sync-sep"></div>
+  <div class="sync-btns">
+    <button class="btn wide ghost" id="btn-backup">Salvar backup (arquivo)</button>
+    <button class="btn wide ghost" id="btn-restore">Restaurar backup</button>
+  </div>
+  <input type="file" id="restore-file" accept=".json" hidden>
+</div>
+
+<div class="confirm" id="confirm" hidden>
+  <div class="confirm-box">
+    <p id="confirm-msg"></p>
+    <div class="sheet-actions">
+      <button class="btn ghost" id="confirm-no">Cancelar</button>
+      <button class="btn danger" id="confirm-yes">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+<datalist id="dl-proj"></datalist>
+
+<script src="seed.js"></script>
+<script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
