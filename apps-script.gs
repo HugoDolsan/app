@@ -45,7 +45,7 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify(out))
     .setMimeType(ContentService.MimeType.JSON);
 }
-var SCRIPT_VERSION = 'v6';  // abra a URL /exec no navegador para conferir a versão ativa
+var SCRIPT_VERSION = 'v7';  // abra a URL /exec no navegador para conferir a versão ativa
 
 function doGet(e) {
   /* Diagnóstico: abra  <URL>/exec?diag=182  para inspecionar a linha 182 */
@@ -221,11 +221,9 @@ function doPush(tasks) {
       kOut.push(tasks[r].autoPct ? { f: kFormula(row) } : { v: (tasks[r].pct || 0) });
       lOut.push(tasks[r].statusManual ? { v: tasks[r].statusManual } : { f: lFormula(row) });
     }
-    /* Células que um dia receberam a fórmula como texto ficaram com formato
-       "Texto simples" — nesse formato, até setFormulas vira literal na tela.
-       Forçar o formato numérico ANTES de gravar resolve de vez. */
-    ws.getRange(FIRST_ROW, 11, n, 1).setNumberFormat('0%');       // K
-    ws.getRange(FIRST_ROW, 12, n, 1).setNumberFormat('General');  // L
+    /* Nada de setNumberFormat aqui: a aba Tarefas usa Tabela do Sheets com
+       colunas tipadas, que não aceitam mudança de formato via script
+       (lança "You can't set the number format of cells in a typed column"). */
     writeMixedColumn(ws, 11, kOut);
     writeMixedColumn(ws, 12, lOut);
 
