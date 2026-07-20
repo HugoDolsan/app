@@ -45,7 +45,7 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify(out))
     .setMimeType(ContentService.MimeType.JSON);
 }
-var SCRIPT_VERSION = 'v8';  // abra a URL /exec no navegador para conferir a versão ativa
+var SCRIPT_VERSION = 'v9';  // abra a URL /exec no navegador para conferir a versão ativa
 var PUSH_STEP = '';         // etapa atual do push, para diagnóstico de erros
 
 function doGet(e) {
@@ -81,6 +81,15 @@ function toDate(isoStr) {
   if (!isoStr) return '';
   var p = String(isoStr).split('-');
   return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+}
+/* Data só quando é data de verdade (yyyy-mm-dd); texto passa como texto.
+   Essencial para "Conclusão" (G), que é texto livre — converter texto com
+   new Date() gerava 31/12/1969 e apagava o conteúdo. */
+function smartCell(v) {
+  if (v === null || v === undefined || v === '') return '';
+  var s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return toDate(s);
+  return s;
 }
 /* Escreve uma coluna misturando valores e fórmulas.
    Valores em lote via setValues; fórmulas em trechos contíguos via setFormulas
@@ -196,12 +205,12 @@ function doPush(tasks) {
     for (var i = 0; i < n; i++) {
       var t = tasks[i];
       colA.push([t.projId || '']);
-      colEI.push([t.tarefa || '', t.obs || '', toDate(t.conclusao), toDate(t.inicio),
+      colEI.push([t.tarefa || '', t.obs || '', smartCell(t.conclusao), smartCell(t.inicio),
                   (t.esforco === null || t.esforco === undefined) ? '' : t.esforco]);
       colMR.push([t.resp || '', t.precisao || '', t.interessado || '',
-                  toDate(t.inicioReal),
+                  smartCell(t.inicioReal),
                   (t.esforcoReal === null || t.esforcoReal === undefined) ? '' : t.esforcoReal,
-                  toDate(t.fimReal)]);
+                  smartCell(t.fimReal)]);
     }
     ws.getRange(FIRST_ROW, 1, n, 1).setValues(colA);   // A
     ws.getRange(FIRST_ROW, 5, n, 5).setValues(colEI);  // E:I

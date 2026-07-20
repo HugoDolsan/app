@@ -4,7 +4,9 @@
 'use strict';
 
 /* ---------------- state ---------------- */
-const APP_VERSION = 'v7';
+const APP_VERSION = 'v8';
+const ISO_RE=/^\d{4}-\d{2}-\d{2}$/;
+const isIso=s=>typeof s==='string'&&ISO_RE.test(s);
 const LS_KEY = 'pt_state_v2';
 
 function freshState(){
@@ -150,10 +152,10 @@ function taskInRange(t,a,b){
   if(!h) return false;
   return h<=b && j>=a;
 }
-/* para as listas: também entra quem tem Conclusão dentro do período */
+/* para as listas: também entra quem tem Conclusão (quando for data) no período */
 function listInRange(t,a,b){
   if(taskInRange(t,a,b)) return true;
-  return !!(t.conclusao && t.conclusao>=a && t.conclusao<=b);
+  return !!(isIso(t.conclusao) && t.conclusao>=a && t.conclusao<=b);
 }
 function renderCalendar(){
   $('#cal-title').innerHTML=`${MESES[cal.m]} ${cal.y}`;
@@ -168,7 +170,7 @@ function renderCalendar(){
   const grid=$('#cal-grid'); grid.innerHTML='';
 
   const visTasks=S.tasks.filter(t=>passFilter(t) && t.inicio);
-  const doneSet=new Set(S.tasks.filter(t=>passFilter(t)&&t.conclusao).map(t=>t.conclusao));
+  const doneSet=new Set(S.tasks.filter(t=>passFilter(t)&&isIso(t.conclusao)).map(t=>t.conclusao));
 
   for(let w=0;w<weeks;w++){
     const wkStart=new Date(start.getTime()+w*7*DAY);
@@ -263,7 +265,7 @@ function taskCard(t){
       <div class="t2">
         <span class="pill" style="background:${meta.c}">${st}</span>
         <span class="dates">${fmt(t.inicio)}${fimPlanejado(t)?' → '+fmt(fimPlanejado(t)):''}</span>
-        ${t.conclusao?`<span class="concl">✔ Conclusão: ${fmt(t.conclusao)}</span>`:''}
+        ${t.conclusao?`<span class="concl">✔ ${isIso(t.conclusao)?fmt(t.conclusao):esc(t.conclusao)}</span>`:''}
         ${t.resp?`<span class="resp">${esc(t.resp)}</span>`:''}
         <span class="dates"><b>${pctTxt}</b></span>
       </div>
@@ -289,13 +291,14 @@ const COLS=[
   {k:'resp',       h:'Responsável',   edit:'text'},
   {k:'precisao',   h:'Precisão',      edit:'precisao'},
   {k:'interessado',h:'Interessado',   edit:'text'},
-  {k:'conclusao',  h:'Conclusão',     edit:'date'},
+  {k:'conclusao',  h:'Conclusão',     edit:'text'},
   {k:'inicioReal', h:'Início Real',   edit:'date'},
   {k:'esforcoReal',h:'Esforço Real',  edit:'number', cls:'num'},
   {k:'fimReal',    h:'Fim Real',      edit:'date'},
 ];
 function cellText(t,c){
   if(c.k==='projId') return esc(projName(t));
+  if(c.k==='conclusao') return isIso(t.conclusao)?fmt(t.conclusao):esc(t.conclusao||'');
   if(c.k==='_fim') return fmt(fimPlanejado(t));
   if(c.k==='_status'){ const st=statusOf(t); return `<span class="pill" style="background:${STATUS[st].c}">${st}</span>`+(t.statusManual?'':' <span class="autoflag">⚙</span>'); }
   if(c.k==='pct'){ const k=pctEff(t); return (k==='V'?'Verificar':Math.round((k||0)*100)+'%')+(t.autoPct?' <span class="autoflag">⚙</span>':''); }
@@ -469,7 +472,7 @@ function fieldHTML(t){
   </div>
   <div class="frow">
     <div><label class="lbl">Esforço real</label><input class="inp" type="number" step="0.5" name="esforcoReal" value="${t.esforcoReal??''}"></div>
-    <div><label class="lbl">Conclusão (data)</label><input class="inp" type="date" name="conclusao" value="${t.conclusao||''}"></div>
+    <div><label class="lbl">Conclusão (texto livre)</label><input class="inp" name="conclusao" value="${esc(t.conclusao||'')}" placeholder="ex.: entregue dia X / 2026-07-20"></div>
   </div>`;
 }
 function blankTask(){
