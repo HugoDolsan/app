@@ -40,12 +40,13 @@ function doPost(e) {
     else if (body.action === 'push') out = doPush(body.tasks || []);
     else out = { error: 'ação desconhecida' };
   } catch (err) {
-    out = { error: String(err) };
+    out = { error: String(err), etapa: PUSH_STEP, version: SCRIPT_VERSION };
   }
   return ContentService.createTextOutput(JSON.stringify(out))
     .setMimeType(ContentService.MimeType.JSON);
 }
-var SCRIPT_VERSION = 'v7';  // abra a URL /exec no navegador para conferir a versão ativa
+var SCRIPT_VERSION = 'v8';  // abra a URL /exec no navegador para conferir a versão ativa
+var PUSH_STEP = '';         // etapa atual do push, para diagnóstico de erros
 
 function doGet(e) {
   /* Diagnóstico: abra  <URL>/exec?diag=182  para inspecionar a linha 182 */
@@ -164,6 +165,7 @@ function doPush(tasks) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var ws = ss.getSheetByName(SHEET_TAREFAS);
 
+  PUSH_STEP = 'backup';
   /* backup de segurança com data/hora — mantém os 3 mais recentes */
   var BK_PREFIX = 'Tarefas_bk_';
   var stamp = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd_HH-mm-ss');
@@ -188,6 +190,7 @@ function doPush(tasks) {
   }
 
   if (n > 0) {
+    PUSH_STEP = 'valores (A, E:I, M:R)';
     /* valores: A | E F G H I | K | M N O P Q R  (G/H = datas; K = número ou fórmula) */
     var colA = [], colEI = [], colMR = [];
     for (var i = 0; i < n; i++) {
@@ -224,20 +227,26 @@ function doPush(tasks) {
     /* Nada de setNumberFormat aqui: a aba Tarefas usa Tabela do Sheets com
        colunas tipadas, que não aceitam mudança de formato via script
        (lança "You can't set the number format of cells in a typed column"). */
+    PUSH_STEP = 'fórmulas/valores K e L';
     writeMixedColumn(ws, 11, kOut);
     writeMixedColumn(ws, 12, lOut);
 
-    /* colunas de fórmula copiadas da linha-modelo 13 para todas as linhas */
+    /* colunas de fórmula copiadas da linha-modelo 13 para todas as linhas.
+       PASTE_FORMULA: cola SÓ a fórmula, sem formatação — copiar formato para
+       coluna tipada da Tabela dispara o erro de "typed column". */
+    PUSH_STEP = 'fórmulas B:D, J, S:V';
     var formulaCols = [2, 3, 4, 10, 19, 20, 21, 22]; // B C D J S T U V
     for (var f = 0; f < formulaCols.length; f++) {
       var c = formulaCols[f];
       var src = ws.getRange(FIRST_ROW, c);
       if (src.getFormula() === '') continue;
-      if (n > 1) src.copyTo(ws.getRange(FIRST_ROW + 1, c, n - 1, 1), { contentsOnly: false });
+      if (n > 1) src.copyTo(ws.getRange(FIRST_ROW + 1, c, n - 1, 1),
+                            SpreadsheetApp.CopyPasteType.PASTE_FORMULA, false);
     }
   }
 
   /* limpa linhas que sobraram (sem apagar linhas, para não quebrar a formatação condicional) */
+  PUSH_STEP = 'limpeza de linhas sobrando';
   if (prevLast > endRow) {
     var extra = prevLast - Math.max(endRow, FIRST_ROW - 1);
     ws.getRange(Math.max(endRow + 1, FIRST_ROW), 1, extra, 1).clearContent();               // A
