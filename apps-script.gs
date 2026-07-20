@@ -45,7 +45,7 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify(out))
     .setMimeType(ContentService.MimeType.JSON);
 }
-var SCRIPT_VERSION = 'v5';  // abra a URL /exec no navegador para conferir a versão ativa
+var SCRIPT_VERSION = 'v6';  // abra a URL /exec no navegador para conferir a versão ativa
 
 function doGet(e) {
   /* Diagnóstico: abra  <URL>/exec?diag=182  para inspecionar a linha 182 */
@@ -179,10 +179,12 @@ function doPush(tasks) {
   var n = tasks.length;
   var endRow = FIRST_ROW + n - 1;
 
-  /* fórmula de % automático (mesma da planilha original), por linha */
+  /* fórmula de % automático (mesma da planilha original), por linha.
+     SEPARADOR ";" — a planilha é pt_BR e o parser exige o separador do locale
+     (comprovado: fórmulas com "," entram como #ERROR!). */
   function kFormula(row) {
-    return '=IF(H' + row + '="",0, IF(TODAY() <= H' + row + ', 0, IF(TODAY() >=J' + row +
-           ', "Verificar", (TODAY() - H' + row + ') / (J' + row + ' - H' + row + ') * 1)))';
+    return '=IF(H' + row + '="";0; IF(TODAY() <= H' + row + '; 0; IF(TODAY() >=J' + row +
+           '; "Verificar"; (TODAY() - H' + row + ') / (J' + row + ' - H' + row + ') * 1)))';
   }
 
   if (n > 0) {
@@ -202,12 +204,12 @@ function doPush(tasks) {
     ws.getRange(FIRST_ROW, 5, n, 5).setValues(colEI);  // E:I
     ws.getRange(FIRST_ROW, 13, n, 6).setValues(colMR); // M:R
 
-    /* fórmula de status (coluna L), mesma da planilha original */
+    /* fórmula de status (coluna L), mesma da planilha original — separador ";" */
     function lFormula(row) {
-      return '=IF(AND(K' + row + '=0,H' + row + '>=TODAY()),"Não iniciado", IF(K' + row +
-             '=1,"Concluído",IF(K' + row + '=0,"Standby",IF(OR(AND(K' + row + '=0,H' + row +
-             '<=TODAY()),J' + row + '<TODAY()),"Atrasado",IF(AND(H' + row + '="",H' + row +
-             '<>"",H' + row + '<=TODAY()),"Atrasado","Em andamento")))))';
+      return '=IF(AND(K' + row + '=0;H' + row + '>=TODAY());"Não iniciado"; IF(K' + row +
+             '=1;"Concluído";IF(K' + row + '=0;"Standby";IF(OR(AND(K' + row + '=0;H' + row +
+             '<=TODAY());J' + row + '<TODAY());"Atrasado";IF(AND(H' + row + '="";H' + row +
+             '<>"";H' + row + '<=TODAY());"Atrasado";"Em andamento")))))';
     }
 
     /* K e L: fórmula por padrão; valor digitado quando houver edição manual no app.
