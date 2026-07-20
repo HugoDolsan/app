@@ -84,7 +84,17 @@ const STATUS = {
   'Standby':      {c:'var(--st-stb)', cls:'c-stb'},
 };
 function projOf(t){ return S.projects.find(p=>p.id.toLowerCase()===String(t.projId).toLowerCase()); }
-function projName(t){ const p=projOf(t); return p ? p.nome : t.projId; }
+function projName(t){ const p=projOf(t); return p ? (p.nome||p.id) : t.projId; }
+/* aceita nome OU id digitado; devolve o ID para armazenar/sincronizar */
+function resolveProjInput(text){
+  const s=String(text||'').trim();
+  if(!s) return '';
+  const byName=S.projects.find(p=>(p.nome||'').toLowerCase()===s.toLowerCase());
+  if(byName) return byName.id;
+  const byId=S.projects.find(p=>p.id.toLowerCase()===s.toLowerCase());
+  if(byId) return byId.id;
+  return s;
+}
 
 /* ---------------- filters ---------------- */
 const F = { status:new Set(), proj:'', q:'' };
@@ -117,7 +127,7 @@ function renderFilterbar(){
     S.projects.map(p=>`<option value="${esc(p.id)}" ${p.id===cur?'selected':''}>${esc(p.nome||p.id)}</option>`).join('')+
     extra.map(id=>`<option value="${esc(id)}" ${id===cur?'selected':''}>${esc(id)}</option>`).join('');
   $('#dl-proj').innerHTML=
-    S.projects.map(p=>`<option value="${esc(p.id)}">${esc(p.nome||p.id)}</option>`).join('')+
+    S.projects.map(p=>`<option value="${esc(p.nome||p.id)}"></option>`).join('')+
     extra.map(id=>`<option value="${esc(id)}"></option>`).join('');
 }
 $('#f-proj').onchange=e=>{ F.proj=e.target.value; renderAll(); };
@@ -262,7 +272,7 @@ $('#cal-title').onclick=()=>{ const n=new Date(); cal.y=n.getFullYear(); cal.m=n
 
 /* ---------------- table (screen 2) ---------------- */
 const COLS=[
-  {k:'projId',     h:'ID',            edit:'proj'},
+  {k:'projId',     h:'Projeto',       edit:'proj'},
   {k:'tarefa',     h:'Tarefa',        edit:'text',   cls:'c-tarefa'},
   {k:'obs',        h:'Obs',           edit:'textarea'},
   {k:'inicio',     h:'Início Planej.',edit:'date'},
@@ -279,6 +289,7 @@ const COLS=[
   {k:'fimReal',    h:'Fim Real',      edit:'date'},
 ];
 function cellText(t,c){
+  if(c.k==='projId') return esc(projName(t));
   if(c.k==='_fim') return fmt(fimPlanejado(t));
   if(c.k==='_status'){ const st=statusOf(t); return `<span class="pill" style="background:${STATUS[st].c}">${st}</span>`+(t.statusManual?'':' <span class="autoflag">⚙</span>'); }
   if(c.k==='pct'){ const k=pctEff(t); return (k==='V'?'Verificar':Math.round((k||0)*100)+'%')+(t.autoPct?' <span class="autoflag">⚙</span>':''); }
@@ -322,7 +333,7 @@ function inlineEdit(td,row,col){
   if(col.edit==='proj'){
     el=document.createElement('input');
     el.type='text'; el.setAttribute('list','dl-proj');
-    el.value=t.projId||''; el.placeholder='digite para filtrar';
+    el.value=projName(t)||''; el.placeholder='nome do projeto';
   }else if(col.edit==='precisao'){
     el=document.createElement('select');
     el.innerHTML=`<option value="Janela" ${(t.precisao||'Janela')==='Janela'?'selected':''}>Janela</option><option value="Exata" ${t.precisao==='Exata'?'selected':''}>Exata</option>`;
@@ -359,8 +370,8 @@ function inlineEdit(td,row,col){
     }else if(col.edit==='number'){ t[col.k]=v===''?null:parseFloat(v); }
     else if(col.edit==='date'){ t[col.k]=v||null; }
     else if(col.edit==='proj'){
-      if(!v.trim()){ toast('Informe o ID do projeto','err'); cancel(); return; }
-      t.projId=v.trim();
+      if(!v.trim()){ toast('Informe o projeto','err'); cancel(); return; }
+      t.projId=resolveProjInput(v);
     }
     else if(col.edit==='precisao'){ t[col.k]=v; }
     else {
@@ -409,9 +420,9 @@ function fieldHTML(t){
   const resps=[...new Set(S.tasks.map(x=>x.resp).filter(Boolean))].sort();
   const k=pctEff(t); const pctVal=k==='V'?100:Math.round((k||0)*100);
   return `
-  <label class="lbl">Projeto (ID)</label>
-  <input class="inp" name="projId" list="dl-proj" value="${esc(t.projId||'')}" placeholder="Digite para filtrar ou criar...">
-  <p class="hint">Filtra os projetos existentes enquanto digita; um ID novo também é aceito.</p>
+  <label class="lbl">Projeto</label>
+  <input class="inp" name="projId" list="dl-proj" value="${esc(projName(t)||'')}" placeholder="Digite o nome do projeto...">
+  <p class="hint">Filtra os projetos enquanto digita; um nome novo também é aceito.</p>
   <label class="lbl">Tarefa</label>
   <input class="inp" name="tarefa" value="${esc(t.tarefa)}" placeholder="O que precisa ser feito?">
   <div class="frow">
@@ -486,8 +497,8 @@ $('#task-save').onclick=()=>{
   const form=$('#task-form');
   const t = editIdx==null ? JSON.parse(form.dataset.blank) : S.tasks[editIdx];
   const v=n=>{ const el=form.querySelector(`[name=${n}]`); return el?el.value:null; };
-  t.projId=v('projId').trim(); t.tarefa=v('tarefa').trim();
-  if(!t.projId){ toast('Informe o ID do projeto','err'); return; }
+  t.projId=resolveProjInput(v('projId')); t.tarefa=v('tarefa').trim();
+  if(!t.projId){ toast('Informe o projeto','err'); return; }
   t.inicio=v('inicio')||null;
   t.esforco=v('esforco')===''?null:parseFloat(v('esforco'));
   t.precisao=v('precisao');

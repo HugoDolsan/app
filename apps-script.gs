@@ -19,7 +19,12 @@
  *          então o Gantt, o Status e a formatação da planilha continuam funcionando.
  *  - Linhas com % automático (autoPct) recebem de volta a FÓRMULA de % em K,
  *    exatamente como na planilha original.
- *  - Antes de cada push é criada uma cópia de segurança da aba (Tarefas_backup).
+ *  - Antes de cada push é criada uma aba oculta de backup com data/hora
+ *    (Tarefas_bk_...); os 3 backups mais recentes são mantidos.
+ *
+ * IMPORTANTE ao atualizar este código: salvar NÃO basta. É preciso
+ * Implantar → Gerenciar implantações → ✎ → Versão: "Nova versão" → Implantar.
+ * Para conferir a versão ativa, abra a URL /exec no navegador (mostra "version").
  */
 
 var SHEET_TAREFAS = 'Tarefas';
@@ -40,8 +45,10 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify(out))
     .setMimeType(ContentService.MimeType.JSON);
 }
+var SCRIPT_VERSION = 'v3';  // abra a URL /exec no navegador para conferir a versão ativa
+
 function doGet(e) { // teste rápido no navegador
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, msg: 'Planejamento HD sync ativo' }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, version: SCRIPT_VERSION, msg: 'Planejamento HD sync ativo' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -139,11 +146,16 @@ function doPush(tasks) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var ws = ss.getSheetByName(SHEET_TAREFAS);
 
-  /* backup de segurança */
-  var bkName = 'Tarefas_backup';
-  var old = ss.getSheetByName(bkName);
-  if (old) ss.deleteSheet(old);
-  ws.copyTo(ss).setName(bkName).hideSheet();
+  /* backup de segurança com data/hora — mantém os 3 mais recentes */
+  var BK_PREFIX = 'Tarefas_bk_';
+  var stamp = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd_HH-mm-ss');
+  ws.copyTo(ss).setName(BK_PREFIX + stamp).hideSheet();
+  var bks = ss.getSheets()
+    .filter(function (s) { return s.getName().indexOf(BK_PREFIX) === 0; })
+    .sort(function (a, b) { return a.getName() < b.getName() ? -1 : 1; });
+  while (bks.length > 3) ss.deleteSheet(bks.shift());
+  var legacy = ss.getSheetByName('Tarefas_backup');   // backup do formato antigo
+  if (legacy) ss.deleteSheet(legacy);
 
   var prevLast = lastDataRow(ws);
   var n = tasks.length;
