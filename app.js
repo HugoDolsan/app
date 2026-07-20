@@ -4,6 +4,7 @@
 'use strict';
 
 /* ---------------- state ---------------- */
+const APP_VERSION = 'v5';
 const LS_KEY = 'pt_state_v2';
 
 function freshState(){
@@ -600,9 +601,9 @@ $('#row-del').onclick=async()=>{
 /* ---------------- sync ---------------- */
 $('#btn-sync').onclick=()=>{
   $('#sync-url').value=S.settings.scriptUrl||'';
-  $('#sync-info').textContent = S.settings.lastSync
+  $('#sync-info').textContent = 'App '+APP_VERSION+' · '+(S.settings.lastSync
     ? 'Última sincronização: '+new Date(S.settings.lastSync).toLocaleString('pt-BR')
-    : 'Nunca sincronizado. Cole a URL do Apps Script (veja LEIA-ME).';
+    : 'Nunca sincronizado. Cole a URL do Apps Script (veja LEIA-ME).');
   openSheet('#sheet-sync');
 };
 $('#sync-url').onchange=e=>{ S.settings.scriptUrl=e.target.value.trim(); persist(); };

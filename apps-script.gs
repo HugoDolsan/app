@@ -45,9 +45,27 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify(out))
     .setMimeType(ContentService.MimeType.JSON);
 }
-var SCRIPT_VERSION = 'v4';  // abra a URL /exec no navegador para conferir a versão ativa
+var SCRIPT_VERSION = 'v5';  // abra a URL /exec no navegador para conferir a versão ativa
 
-function doGet(e) { // teste rápido no navegador
+function doGet(e) {
+  /* Diagnóstico: abra  <URL>/exec?diag=182  para inspecionar a linha 182 */
+  if (e && e.parameter && e.parameter.diag) {
+    var row = Number(e.parameter.diag);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ws = ss.getSheetByName(SHEET_TAREFAS);
+    var k = ws.getRange(row, 11), l = ws.getRange(row, 12);
+    var out = {
+      version: SCRIPT_VERSION,
+      spreadsheetLocale: ss.getSpreadsheetLocale(),
+      lastDataRow: lastDataRow(ws),
+      lastPush: PropertiesService.getScriptProperties().getProperty('lastPush') || 'nunca',
+      K: { formula: k.getFormula(), value: String(k.getValue()), numberFormat: k.getNumberFormat() },
+      L: { formula: l.getFormula(), value: String(l.getValue()), numberFormat: l.getNumberFormat() },
+      A: String(ws.getRange(row, 1).getValue())
+    };
+    return ContentService.createTextOutput(JSON.stringify(out, null, 1))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
   return ContentService.createTextOutput(JSON.stringify({ ok: true, version: SCRIPT_VERSION, msg: 'Planejamento HD sync ativo' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
@@ -232,5 +250,8 @@ function doPush(tasks) {
     ws.getRange(Math.max(endRow + 1, FIRST_ROW), 19, extra, 4).clearContent();              // S:V
   }
 
-  return { ok: true, written: n };
+  PropertiesService.getScriptProperties().setProperty('lastPush', JSON.stringify({
+    quando: new Date().toISOString(), tarefas: n, scriptVersion: SCRIPT_VERSION
+  }));
+  return { ok: true, written: n, scriptVersion: SCRIPT_VERSION };
 }
