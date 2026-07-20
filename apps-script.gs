@@ -45,7 +45,7 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify(out))
     .setMimeType(ContentService.MimeType.JSON);
 }
-var SCRIPT_VERSION = 'v3';  // abra a URL /exec no navegador para conferir a versão ativa
+var SCRIPT_VERSION = 'v4';  // abra a URL /exec no navegador para conferir a versão ativa
 
 function doGet(e) { // teste rápido no navegador
   return ContentService.createTextOutput(JSON.stringify({ ok: true, version: SCRIPT_VERSION, msg: 'Planejamento HD sync ativo' }))
@@ -201,6 +201,11 @@ function doPush(tasks) {
       kOut.push(tasks[r].autoPct ? { f: kFormula(row) } : { v: (tasks[r].pct || 0) });
       lOut.push(tasks[r].statusManual ? { v: tasks[r].statusManual } : { f: lFormula(row) });
     }
+    /* Células que um dia receberam a fórmula como texto ficaram com formato
+       "Texto simples" — nesse formato, até setFormulas vira literal na tela.
+       Forçar o formato numérico ANTES de gravar resolve de vez. */
+    ws.getRange(FIRST_ROW, 11, n, 1).setNumberFormat('0%');       // K
+    ws.getRange(FIRST_ROW, 12, n, 1).setNumberFormat('General');  // L
     writeMixedColumn(ws, 11, kOut);
     writeMixedColumn(ws, 12, lOut);
 
