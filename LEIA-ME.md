@@ -18,23 +18,22 @@ Abra o arquivo `index.html` com dois cliques (funciona direto no navegador; só 
 2. Menu ⋮ → **"Adicionar à tela inicial"** (ou "Instalar app").
 3. Pronto: abre em tela cheia, funciona offline, dados ficam no aparelho.
 
-## Atualizar o site depois de mudanças
+## Atualizar o site — VS Code + GitHub (recomendado)
 
-O arrastar-e-soltar (Vercel Drop) só serve para o primeiro deploy — ele sempre cria um projeto NOVO, com outra URL. Para atualizar mantendo a mesma URL, use o Vercel CLI:
+O repositório Git já está criado nesta pasta, com o primeiro commit pronto. Falta só publicar:
 
 **Uma vez só:**
-1. Instale o Node.js LTS: https://nodejs.org (Avançar-Avançar-Concluir).
-2. Na pasta `app`, clique na barra de endereço do Explorer, digite `cmd` e Enter.
-3. Digite `npx vercel login` → escolha Continue with Google (mesma conta do Vercel).
-4. Digite `npx vercel --prod` → responda:
-   - Set up and deploy? **Y**
-   - Which scope? **hdolsan**
-   - Link to existing project? **Y**
-   - Nome do projeto: **planejamento_tarefas-hd**
+1. Instale: [VS Code](https://code.visualstudio.com) e [Git para Windows](https://git-scm.com/download/win) (Avançar até o fim nos dois). Tenha uma conta em [github.com](https://github.com).
+2. VS Code → File → Open Folder → a pasta `app`.
+3. Ícone **Source Control** (ramificação, na barra esquerda) → botão **Publish Branch** → entre com o GitHub quando pedir → escolha **private repository** com o nome sugerido.
+4. No Vercel: projeto `planejamento_tarefas-hd` → **Settings → Git → Connect Git Repository** → selecione o repositório recém-criado (branch de produção: `main`).
 
-**Depois, para cada atualização:** dois cliques em `atualizar-vercel.bat` (ou `npx vercel --prod` no cmd). Mesma URL, ~10 segundos.
+**Depois, a cada mudança nos arquivos:**
+VS Code → Source Control → escreva uma mensagem curta → **Commit** → **Sync Changes**. O Vercel publica sozinho em ~15 s, na mesma URL.
 
 No navegador: Ctrl+F5. No celular (app instalado): feche e abra o app **duas vezes** — a primeira baixa a versão nova em segundo plano, a segunda abre atualizada. Seus dados não são afetados pelo deploy: ficam salvos no aparelho, fora do site.
+
+*Alternativa sem GitHub: Vercel CLI (`npx vercel --prod` com Node.js instalado, ou dois cliques em `atualizar-vercel.bat` após o primeiro link). O arrastar-e-soltar não atualiza projeto existente — sempre cria um novo, com outra URL.*
 
 ## Ativar a sincronização com o Google Sheets (~10 min, uma vez só)
 
