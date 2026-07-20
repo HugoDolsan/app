@@ -4,7 +4,7 @@
 'use strict';
 
 /* ---------------- state ---------------- */
-const APP_VERSION = 'v6';
+const APP_VERSION = 'v7';
 const LS_KEY = 'pt_state_v2';
 
 function freshState(){
@@ -253,8 +253,13 @@ function taskCard(t){
   el.innerHTML=`
     <div class="stripe" style="background:${meta.c}"></div>
     <div class="body">
-      <div class="t1"><span class="name">${esc(t.tarefa||'(sem nome)')}</span></div>
-      <div class="proj">${esc(projName(t)||'')}</div>
+      <div class="thead2">
+        <div class="tleft">
+          <div class="t1"><span class="name">${esc(t.tarefa||'(sem nome)')}</span></div>
+          <div class="proj">${esc(projName(t)||'')}</div>
+        </div>
+        ${t.obs?`<div class="obs">${esc(t.obs)}</div>`:''}
+      </div>
       <div class="t2">
         <span class="pill" style="background:${meta.c}">${st}</span>
         <span class="dates">${fmt(t.inicio)}${fimPlanejado(t)?' → '+fmt(fimPlanejado(t)):''}</span>
