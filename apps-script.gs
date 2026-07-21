@@ -37,7 +37,10 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (body.action === 'pull') out = doPull();
-    else if (body.action === 'push') out = doPush(body.tasks || []);
+    else if (body.action === 'push') {
+      if (WRITE_TOKEN && body.token !== WRITE_TOKEN) out = { error: 'Token de escrita inválido — confira o campo Token no app' };
+      else out = doPush(body.tasks || []);
+    }
     else out = { error: 'ação desconhecida' };
   } catch (err) {
     out = { error: String(err), etapa: PUSH_STEP, version: SCRIPT_VERSION };
@@ -45,7 +48,13 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify(out))
     .setMimeType(ContentService.MimeType.JSON);
 }
-var SCRIPT_VERSION = 'v9';  // abra a URL /exec no navegador para conferir a versão ativa
+var SCRIPT_VERSION = 'v10'; // abra a URL /exec no navegador para conferir a versão ativa
+
+/* Token de ESCRITA: defina uma senha aqui e cole a mesma no app
+   (painel de sincronizar → campo Token). Com o token definido, quem tiver
+   apenas o link consegue LER (pull), mas não consegue gravar (push).
+   Vazio = qualquer um com a URL pode gravar (como era antes). */
+var WRITE_TOKEN = '';
 var PUSH_STEP = '';         // etapa atual do push, para diagnóstico de erros
 
 function doGet(e) {

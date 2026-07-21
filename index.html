@@ -15,6 +15,8 @@
 </head>
 <body>
 
+<div class="ro-banner" id="ro-banner" hidden>👁 Modo leitura — dados ao vivo da planilha</div>
+
 <header class="topbar">
   <div class="brand">
     <span class="brand-leaf">❧</span>
@@ -118,6 +120,8 @@
   <h2>Sincronizar com o Google Sheets</h2>
   <label class="lbl">URL do Apps Script (Web App)</label>
   <input class="inp" id="sync-url" placeholder="https://script.google.com/macros/s/.../exec">
+  <label class="lbl">Token de escrita (igual ao WRITE_TOKEN do script)</label>
+  <input class="inp" id="sync-token" placeholder="opcional — protege o push">
   <p class="hint" id="sync-info"></p>
   <div class="sync-btns">
     <button class="btn wide" id="btn-pull">⬇ Baixar da planilha</button>
@@ -125,6 +129,7 @@
   </div>
   <div class="sync-sep"></div>
   <div class="sync-btns">
+    <button class="btn wide" id="btn-sharelink">👁 Copiar link de leitura (para compartilhar)</button>
     <button class="btn wide ghost" id="btn-backup">Salvar backup (arquivo)</button>
     <button class="btn wide ghost" id="btn-restore">Restaurar backup</button>
   </div>

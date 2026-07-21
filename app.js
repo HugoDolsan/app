@@ -4,7 +4,10 @@
 'use strict';
 
 /* ---------------- state ---------------- */
-const APP_VERSION = 'v9';
+const APP_VERSION = 'v10';
+/* modo somente-leitura: aberto via link ?share=<url do script> */
+const RO_URL = new URLSearchParams(location.search).get('share') || null;
+const RO = !!RO_URL;
 const ISO_RE=/^\d{4}-\d{2}-\d{2}$/;
 const isIso=s=>typeof s==='string'&&ISO_RE.test(s);
 const LS_KEY = 'pt_state_v2';
@@ -25,9 +28,12 @@ function loadState(){
     return s;
   }catch(e){ return null; }
 }
-let S = loadState() || freshState();
+let S = RO
+  ? { tasks:[], projects:[], settings:{ scriptUrl: decodeURIComponent(RO_URL), lastSync:null, dirty:false } }
+  : (loadState() || freshState());
 function save(){ S.settings.dirty = true; persist(); }
 function persist(){
+  if(RO) return;                     /* visualização não grava nada no aparelho */
   try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){ toast('Erro ao salvar localmente','err'); }
   $('#sync-dot').hidden = !S.settings.dirty;
 }
@@ -349,6 +355,7 @@ $('#tbody').addEventListener('click',e=>{
 /* ---------------- inline (in-cell) editing, spreadsheet style ---------------- */
 const ST_NAMES=Object.keys(STATUS);
 function inlineEdit(td,row,col){
+  if(RO){ toast('Modo somente leitura'); return; }
   const t=S.tasks[row];
   let el;
   if(col.edit==='proj'){
@@ -504,6 +511,7 @@ function blankTask(){
     inicioReal:null, esforcoReal:null, fimReal:null };
 }
 function openTaskModal(idx, presetInicio){
+  if(RO){ toast('Modo somente leitura'); return; }
   editIdx = idx;
   const t = idx==null ? blankTask() : S.tasks[idx];
   if(idx==null && presetInicio) t.inicio=presetInicio;
@@ -582,6 +590,7 @@ $('#task-delete').onclick=async()=>{
 /* ---------------- single-cell editor ---------------- */
 let cellCtx=null;
 function openCellEditor(row,col){
+  if(RO){ toast('Modo somente leitura'); return; }
   cellCtx={row,col};
   const t=S.tasks[row];
   $('#cell-title').textContent=`${col.h} — linha ${row+1}`;
@@ -622,6 +631,7 @@ $('#cell-save').onclick=()=>{
 /* ---------------- row menu ---------------- */
 let rowCtx=null;
 function openRowMenu(row){
+  if(RO){ toast('Modo somente leitura'); return; }
   rowCtx=row;
   $('#row-title').textContent=`Linha ${row+1} — ${S.tasks[row].tarefa||'(sem nome)'}`;
   openSheet('#sheet-row');
@@ -653,13 +663,33 @@ $('#row-del').onclick=async()=>{
 
 /* ---------------- sync ---------------- */
 $('#btn-sync').onclick=()=>{
+  if(RO){ roPull(); return; }        /* na visualização, o botão só atualiza os dados */
   $('#sync-url').value=S.settings.scriptUrl||'';
+  $('#sync-token').value=S.settings.writeToken||'';
   $('#sync-info').textContent = 'App '+APP_VERSION+' · '+(S.settings.lastSync
     ? 'Última sincronização: '+new Date(S.settings.lastSync).toLocaleString('pt-BR')
     : 'Nunca sincronizado. Cole a URL do Apps Script (veja LEIA-ME).');
   openSheet('#sheet-sync');
 };
 $('#sync-url').onchange=e=>{ S.settings.scriptUrl=e.target.value.trim(); persist(); };
+$('#sync-token').onchange=e=>{ S.settings.writeToken=e.target.value.trim(); persist(); };
+$('#btn-sharelink').onclick=async()=>{
+  if(!S.settings.scriptUrl){ toast('Configure a URL do Apps Script primeiro','err'); return; }
+  const link=location.origin+location.pathname+'?share='+encodeURIComponent(S.settings.scriptUrl);
+  try{ await navigator.clipboard.writeText(link); toast('Link de leitura copiado ✓'); }
+  catch(e){ prompt('Copie o link:', link); }
+};
+/* pull do modo leitura: só memória, nada é salvo no aparelho */
+async function roPull(){
+  try{
+    toast('Atualizando...');
+    const j=await api({action:'pull'});
+    S.tasks=(j.tasks||[]).map((t,i)=>({...t, uid:'s'+i, autoPct:!!t.autoPct}));
+    if(j.projects && j.projects.length) S.projects=j.projects;
+    renderAll();
+    toast(S.tasks.length+' tarefas · atualizado ✓');
+  }catch(e){ toast('Erro ao carregar: '+e.message,'err'); }
+}
 async function api(payload){
   const url=S.settings.scriptUrl;
   if(!url) throw new Error('Configure a URL do Apps Script primeiro.');
@@ -690,7 +720,7 @@ $('#btn-push').onclick=async()=>{
   if(!(await confirmBox(`Enviar ${S.tasks.length} tarefas para a planilha? Isso SOBRESCREVE as linhas da aba Tarefas.`))) return;
   try{
     toast('Enviando...');
-    const j=await api({action:'push', tasks:S.tasks.map(t=>({...t, esforco: esforcoEff(t)}))});
+    const j=await api({action:'push', token:S.settings.writeToken||'', tasks:S.tasks.map(t=>({...t, esforco: esforcoEff(t)}))});
     S.settings.lastSync=Date.now(); S.settings.dirty=false; persist();
     closeSheets();
     toast(`Enviado: ${j.written||S.tasks.length} tarefas ✓`);
@@ -759,4 +789,12 @@ function renderAll(){
 }
 persist();
 applyZoom();
-renderAll();
+if(RO){
+  $('#ro-banner').hidden=false;
+  $('#fab').style.display='none';
+  document.title='Planejamento HD · leitura';
+  renderAll();
+  roPull();
+}else{
+  renderAll();
+}
