@@ -4,14 +4,13 @@
 'use strict';
 
 /* ---------------- state ---------------- */
-const APP_VERSION = 'v11';
+const APP_VERSION = 'v12';
 /* URL do Apps Script embutida — leitura aberta a quem tiver o link do site;
    a escrita (push) é protegida pelo Token de escrita (WRITE_TOKEN no script) */
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw-Oa-CYQ8qafhsbhTF4uhKGU8dHk4Kn21_DvSEMhDyLxpq3YtJeKoG3CilVRKJ3kkZ/exec';
-/* modo somente-leitura: link ?share=1 (ou ?share=<url> para outro script) */
+/* MODO PADRÃO = leitura (dados ao vivo). A edição destrava quando o aparelho
+   tem o Token de escrita salvo. ?share=1 força leitura mesmo com token. */
 const RO_PARAM = new URLSearchParams(location.search).get('share') || null;
-const RO = !!RO_PARAM;
-const RO_URL = RO ? (RO_PARAM.startsWith('http') ? decodeURIComponent(RO_PARAM) : DEFAULT_SCRIPT_URL) : null;
 const ISO_RE=/^\d{4}-\d{2}-\d{2}$/;
 const isIso=s=>typeof s==='string'&&ISO_RE.test(s);
 const LS_KEY = 'pt_state_v2';
@@ -32,10 +31,16 @@ function loadState(){
     return s;
   }catch(e){ return null; }
 }
-let S = RO
-  ? { tasks:[], projects:[], settings:{ scriptUrl: RO_URL, lastSync:null, dirty:false } }
-  : (loadState() || freshState());
-if(!RO && !S.settings.scriptUrl) S.settings.scriptUrl = DEFAULT_SCRIPT_URL;
+const _stored = loadState();
+const RO = !!RO_PARAM || !(_stored && _stored.settings && _stored.settings.writeToken);
+let S;
+if(RO){
+  S = freshState();   /* mostra o snapshot embutido; ⟳ traz os dados atuais */
+  S.settings.scriptUrl = (RO_PARAM && RO_PARAM.startsWith('http')) ? decodeURIComponent(RO_PARAM) : DEFAULT_SCRIPT_URL;
+}else{
+  S = _stored || freshState();
+  if(!S.settings.scriptUrl) S.settings.scriptUrl = DEFAULT_SCRIPT_URL;
+}
 function save(){ S.settings.dirty = true; persist(); }
 function persist(){
   if(RO) return;                     /* visualização não grava nada no aparelho */
@@ -668,16 +673,29 @@ $('#row-del').onclick=async()=>{
 
 /* ---------------- sync ---------------- */
 $('#btn-sync').onclick=()=>{
-  if(RO){ roPull(); return; }        /* na visualização, o botão só atualiza os dados */
+  if(RO){ roPull(); return; }        /* no modo leitura, o botão ⟳ atualiza os dados */
   $('#sync-url').value=S.settings.scriptUrl||'';
   $('#sync-token').value=S.settings.writeToken||'';
   $('#sync-info').textContent = 'App '+APP_VERSION+' · '+(S.settings.lastSync
     ? 'Última sincronização: '+new Date(S.settings.lastSync).toLocaleString('pt-BR')
-    : 'Nunca sincronizado. Cole a URL do Apps Script (veja LEIA-ME).');
+    : 'Nunca sincronizado.');
   openSheet('#sheet-sync');
 };
 $('#sync-url').onchange=e=>{ S.settings.scriptUrl=e.target.value.trim(); persist(); };
-$('#sync-token').onchange=e=>{ S.settings.writeToken=e.target.value.trim(); persist(); };
+$('#sync-token').onchange=e=>{
+  const val=e.target.value.trim();
+  if(RO){
+    /* digitar o token no modo leitura destrava a edição neste aparelho */
+    if(!val) return;
+    const st=loadState()||freshState();
+    st.settings.writeToken=val;
+    st.settings.scriptUrl=st.settings.scriptUrl||DEFAULT_SCRIPT_URL;
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(st)); }catch(_){}
+    location.href=location.pathname;   /* recarrega sem ?share, já como editor */
+    return;
+  }
+  S.settings.writeToken=val; persist();
+};
 $('#btn-sharelink').onclick=async()=>{
   const link=location.origin+location.pathname+'?share=1';
   try{ await navigator.clipboard.writeText(link); toast('Link de leitura copiado ✓'); }
@@ -704,6 +722,7 @@ async function api(payload){
   return j;
 }
 $('#btn-pull').onclick=async()=>{
+  if(RO){ closeSheets(); roPull(); return; }
   if(!(await confirmBox('Baixar da planilha SUBSTITUI os dados do app pelos da planilha. Continuar?'))) return;
   try{
     toast('Baixando...');
@@ -794,11 +813,17 @@ function renderAll(){
 persist();
 applyZoom();
 if(RO){
+  document.body.classList.add('ro');
   $('#ro-banner').hidden=false;
   $('#fab').style.display='none';
   document.title='Planejamento HD · leitura';
-  renderAll();
-  roPull();
+  /* tocar na faixa abre o painel do token (desbloqueio da edição) */
+  $('#ro-banner').onclick=()=>{
+    $('#sync-token').value='';
+    $('#sync-info').textContent='App '+APP_VERSION+' · modo leitura. Digite o token para desbloquear a edição neste aparelho.';
+    openSheet('#sheet-sync');
+  };
+  renderAll();   /* mostra o snapshot embutido; dados atuais vêm no botão ⟳ */
 }else{
   renderAll();
 }

@@ -15,7 +15,7 @@
 </head>
 <body>
 
-<div class="ro-banner" id="ro-banner" hidden>👁 Modo leitura — dados ao vivo da planilha</div>
+<div class="ro-banner" id="ro-banner" hidden>👁 Modo leitura — toque em ⟳ para atualizar · toque aqui para inserir o token</div>
 
 <header class="topbar">
   <div class="brand">
@@ -118,20 +118,20 @@
 <div class="sheet" id="sheet-sync" hidden>
   <div class="sheet-grab"></div>
   <h2>Sincronizar com o Google Sheets</h2>
-  <label class="lbl">URL do Apps Script (Web App)</label>
-  <input class="inp" id="sync-url" placeholder="https://script.google.com/macros/s/.../exec">
+  <label class="lbl ed-only">URL do Apps Script (Web App)</label>
+  <input class="inp ed-only" id="sync-url" placeholder="https://script.google.com/macros/s/.../exec">
   <label class="lbl">Token de escrita (igual ao WRITE_TOKEN do script)</label>
-  <input class="inp" id="sync-token" placeholder="opcional — protege o push">
+  <input class="inp" id="sync-token" placeholder="digite para desbloquear a edição">
   <p class="hint" id="sync-info"></p>
   <div class="sync-btns">
-    <button class="btn wide" id="btn-pull">⬇ Baixar da planilha</button>
-    <button class="btn wide primary" id="btn-push">⬆ Enviar para a planilha</button>
+    <button class="btn wide ed-only" id="btn-pull">⬇ Baixar da planilha</button>
+    <button class="btn wide primary ed-only" id="btn-push">⬆ Enviar para a planilha</button>
   </div>
-  <div class="sync-sep"></div>
+  <div class="sync-sep ed-only"></div>
   <div class="sync-btns">
-    <button class="btn wide" id="btn-sharelink">👁 Copiar link de leitura (para compartilhar)</button>
-    <button class="btn wide ghost" id="btn-backup">Salvar backup (arquivo)</button>
-    <button class="btn wide ghost" id="btn-restore">Restaurar backup</button>
+    <button class="btn wide ed-only" id="btn-sharelink">👁 Copiar link de leitura (para compartilhar)</button>
+    <button class="btn wide ghost ed-only" id="btn-backup">Salvar backup (arquivo)</button>
+    <button class="btn wide ghost ed-only" id="btn-restore">Restaurar backup</button>
   </div>
   <input type="file" id="restore-file" accept=".json" hidden>
 </div>
