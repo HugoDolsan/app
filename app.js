@@ -4,7 +4,7 @@
 'use strict';
 
 /* ---------------- state ---------------- */
-const APP_VERSION = 'v8';
+const APP_VERSION = 'v9';
 const ISO_RE=/^\d{4}-\d{2}-\d{2}$/;
 const isIso=s=>typeof s==='string'&&ISO_RE.test(s);
 const LS_KEY = 'pt_state_v2';
@@ -50,9 +50,21 @@ function addWorkdays(startIso, n){
 }
 
 /* ---------------- sheet formulas, replicated ---------------- */
+/* dias úteis no intervalo (a, b] — inverso exato de addWorkdays */
+function workdaysBetween(a,b){
+  let d=pd(a); const end=pd(b); let n=0;
+  while(d<end){ d=new Date(d.getTime()+DAY); if(!isWeekend(d)) n++; }
+  return n;
+}
 function fimPlanejado(t){
+  if(t.fimManual) return t.fimManual;
   if(!t.inicio || t.esforco===null || t.esforco===undefined || t.esforco==='') return null;
   return addWorkdays(t.inicio, t.esforco);
+}
+/* esforço efetivo: digitado, ou calculado a partir do Fim manual */
+function esforcoEff(t){
+  if(t.fimManual && t.inicio) return workdaysBetween(t.inicio, t.fimManual);
+  return t.esforco;
 }
 /* effective % — replicates the auto-progress formula on autoPct rows.
    Returns number 0..1, or 'V' ("Verificar") */
@@ -285,7 +297,7 @@ const COLS=[
   {k:'obs',        h:'Obs',           edit:'textarea'},
   {k:'inicio',     h:'Início Planej.',edit:'date'},
   {k:'esforco',    h:'Esforço (dias)',edit:'number', cls:'num'},
-  {k:'_fim',       h:'Fim Planej.',   computed:true, cls:'muted'},
+  {k:'_fim',       h:'Fim Planej.',   edit:'fimplan'},
   {k:'pct',        h:'% Final.',      edit:'pct',    cls:'num'},
   {k:'_status',    h:'Status',        edit:'status'},
   {k:'resp',       h:'Responsável',   edit:'text'},
@@ -299,7 +311,8 @@ const COLS=[
 function cellText(t,c){
   if(c.k==='projId') return esc(projName(t));
   if(c.k==='conclusao') return isIso(t.conclusao)?fmt(t.conclusao):esc(t.conclusao||'');
-  if(c.k==='_fim') return fmt(fimPlanejado(t));
+  if(c.k==='esforco'){ const e=esforcoEff(t); return (e==null?'':String(e))+(t.fimManual?' <span class="autoflag">⚙</span>':''); }
+  if(c.k==='_fim') return fmt(fimPlanejado(t))+(t.fimManual?'':' <span class="autoflag">⚙</span>');
   if(c.k==='_status'){ const st=statusOf(t); return `<span class="pill" style="background:${STATUS[st].c}">${st}</span>`+(t.statusManual?'':' <span class="autoflag">⚙</span>'); }
   if(c.k==='pct'){ const k=pctEff(t); return (k==='V'?'Verificar':Math.round((k||0)*100)+'%')+(t.autoPct?' <span class="autoflag">⚙</span>':''); }
   if(c.edit==='date') return fmt(t[c.k]);
@@ -329,7 +342,6 @@ $('#tbody').addEventListener('click',e=>{
   const row=+td.dataset.row;
   if(td.classList.contains('rownum')){ openRowMenu(row); return; }
   const col=COLS[+td.dataset.col];
-  if(col.k==='_fim'){ toast('Fim Planejado é calculado: início + esforço em dias úteis'); return; }
   if(col.edit==='textarea'){ openCellEditor(row,col); return; }   /* obs: caixa maior */
   inlineEdit(td,row,col);
 });
@@ -356,6 +368,9 @@ function inlineEdit(td,row,col){
     el.placeholder='auto';
     if(!t.autoPct) el.value=Math.round((t.pct||0)*100);
     el.title='Vazio = automático (fórmula da planilha)';
+  }else if(col.edit==='fimplan'){
+    el=document.createElement('input'); el.type='date'; el.value=fimPlanejado(t)||'';
+    el.title='Definir o Fim recalcula o esforço em dias úteis; vazio volta ao automático';
   }else if(col.edit==='date'){
     el=document.createElement('input'); el.type='date'; el.value=t[col.k]||'';
   }else if(col.edit==='number'){
@@ -376,7 +391,12 @@ function inlineEdit(td,row,col){
       else { t.pct=Math.min(100,Math.max(0,parseFloat(v)))/100; t.autoPct=false; }
     }else if(col.edit==='status'){
       t.statusManual=v||null;
-    }else if(col.edit==='number'){ t[col.k]=v===''?null:parseFloat(v); }
+    }else if(col.edit==='fimplan'){
+      if(!v){ t.fimManual=null; }
+      else if(t.inicio && v<t.inicio){ toast('Fim antes do início','err'); cancel(); return; }
+      else { t.fimManual=v; if(t.inicio) t.esforco=workdaysBetween(t.inicio,v); }
+    }else if(col.k==='esforco'){ t.esforco=v===''?null:parseFloat(v); t.fimManual=null; }
+    else if(col.edit==='number'){ t[col.k]=v===''?null:parseFloat(v); }
     else if(col.edit==='date'){ t[col.k]=v||null; }
     else if(col.edit==='proj'){
       if(!v.trim()){ toast('Informe o projeto','err'); cancel(); return; }
@@ -436,16 +456,17 @@ function fieldHTML(t){
   <input class="inp" name="tarefa" value="${esc(t.tarefa)}" placeholder="O que precisa ser feito?">
   <div class="frow">
     <div><label class="lbl">Início planejado</label><input class="inp" type="date" name="inicio" value="${t.inicio||''}"></div>
-    <div><label class="lbl">Esforço (dias úteis)</label><input class="inp" type="number" step="0.5" min="0" name="esforco" value="${t.esforco??''}"></div>
-  </div>
-  <div class="frow">
-    <div><label class="lbl">Fim planejado (auto)</label><input class="inp" disabled value="${fmt(fimPlanejado(t))||'—'}"></div>
     <div><label class="lbl">Precisão da data</label>
       <select class="sel" name="precisao">
         <option value="Janela" ${(t.precisao||'Janela')==='Janela'?'selected':''}>Janela</option>
         <option value="Exata" ${t.precisao==='Exata'?'selected':''}>Exata</option>
       </select></div>
   </div>
+  <div class="frow">
+    <div><label class="lbl" id="lbl-esf">Esforço (dias úteis)${t.fimManual?' ⚙':''}</label><input class="inp" type="number" step="0.5" min="0" name="esforco" value="${esforcoEff(t)??''}"></div>
+    <div><label class="lbl" id="lbl-fim">Fim planejado${t.fimManual?'':' ⚙'}</label><input class="inp" type="date" name="fimPlan" value="${fimPlanejado(t)||''}"></div>
+  </div>
+  <p class="hint">Preencha um dos dois — o outro é calculado (⚙) em dias úteis.</p>
   <label class="lbl">% finalizado</label>
   <div class="pct-row">
     <input type="range" name="pct" min="0" max="100" step="5" value="${pctVal}">
@@ -478,7 +499,7 @@ function fieldHTML(t){
 function blankTask(){
   return { uid:'n'+Date.now()+Math.random().toString(36).slice(2,6),
     projId:S.projects[0]?S.projects[0].id:'', tarefa:'', obs:null, conclusao:null,
-    inicio: cal.sel || todayISO(), esforco:1, pct:0, autoPct:true, statusManual:null,
+    inicio: cal.sel || todayISO(), esforco:1, fimManual:null, pct:0, autoPct:true, statusManual:null,
     resp:'Hugo', precisao:'Janela', interessado:null,
     inicioReal:null, esforcoReal:null, fimReal:null };
 }
@@ -500,6 +521,23 @@ function openTaskModal(idx, presetInicio){
     form.dataset.pctAuto='1'; range.dataset.touched='';
     autoBtn.textContent='⚙ % automático ao salvar ✓';
   };
+  /* esforço ⇄ fim: quem for editado por último manda; o outro recalcula ao vivo */
+  form.dataset.dur = t.fimManual ? 'fim' : 'esf';
+  const esfEl=form.querySelector('[name=esforco]'), fimEl=form.querySelector('[name=fimPlan]'), iniEl=form.querySelector('[name=inicio]');
+  const syncDur=()=>{
+    const ini=iniEl.value;
+    if(!ini) return;
+    if(form.dataset.dur==='fim'){
+      if(fimEl.value && fimEl.value>=ini) esfEl.value=workdaysBetween(ini, fimEl.value);
+    }else if(esfEl.value!==''){
+      fimEl.value=addWorkdays(ini, parseFloat(esfEl.value));
+    }
+    $('#lbl-esf').textContent='Esforço (dias úteis)'+(form.dataset.dur==='fim'?' ⚙':'');
+    $('#lbl-fim').textContent='Fim planejado'+(form.dataset.dur==='fim'?'':' ⚙');
+  };
+  esfEl.oninput=()=>{ form.dataset.dur='esf'; syncDur(); };
+  fimEl.oninput=()=>{ form.dataset.dur='fim'; syncDur(); };
+  iniEl.oninput=syncDur;
   openSheet('#sheet-task');
 }
 $('#task-save').onclick=()=>{
@@ -509,7 +547,14 @@ $('#task-save').onclick=()=>{
   t.projId=resolveProjInput(v('projId')); t.tarefa=v('tarefa').trim();
   if(!t.projId){ toast('Informe o projeto','err'); return; }
   t.inicio=v('inicio')||null;
-  t.esforco=v('esforco')===''?null:parseFloat(v('esforco'));
+  if(form.dataset.dur==='fim' && v('fimPlan')){
+    if(t.inicio && v('fimPlan')<t.inicio){ toast('Fim antes do início','err'); return; }
+    t.fimManual=v('fimPlan');
+    t.esforco = t.inicio ? workdaysBetween(t.inicio, t.fimManual) : t.esforco;
+  }else{
+    t.esforco=v('esforco')===''?null:parseFloat(v('esforco'));
+    t.fimManual=null;
+  }
   t.precisao=v('precisao');
   const range=form.querySelector('[name=pct]');
   if(form.dataset.pctAuto){ t.autoPct=true; }
@@ -645,7 +690,7 @@ $('#btn-push').onclick=async()=>{
   if(!(await confirmBox(`Enviar ${S.tasks.length} tarefas para a planilha? Isso SOBRESCREVE as linhas da aba Tarefas.`))) return;
   try{
     toast('Enviando...');
-    const j=await api({action:'push', tasks:S.tasks});
+    const j=await api({action:'push', tasks:S.tasks.map(t=>({...t, esforco: esforcoEff(t)}))});
     S.settings.lastSync=Date.now(); S.settings.dirty=false; persist();
     closeSheets();
     toast(`Enviado: ${j.written||S.tasks.length} tarefas ✓`);
