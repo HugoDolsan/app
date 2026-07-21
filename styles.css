@@ -78,6 +78,7 @@ body.ro .ed-only{display:none!important}
 .chip.on.c-atr{background:var(--st-atr);border-color:var(--st-atr);color:#fff}
 .chip.on.c-stb{background:var(--st-stb);border-color:var(--st-stb);color:#fff}
 .chip.on .dot{background:#fff!important}
+.chip.off{opacity:.42;text-decoration:line-through}
 .filter-row2{display:flex;gap:8px}
 .sel,.inp{
   font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:10px;

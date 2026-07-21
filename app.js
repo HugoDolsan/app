@@ -4,7 +4,7 @@
 'use strict';
 
 /* ---------------- state ---------------- */
-const APP_VERSION = 'v12';
+const APP_VERSION = 'v13';
 /* URL do Apps Script embutida — leitura aberta a quem tiver o link do site;
    a escrita (push) é protegida pelo Token de escrita (WRITE_TOKEN no script) */
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw-Oa-CYQ8qafhsbhTF4uhKGU8dHk4Kn21_DvSEMhDyLxpq3YtJeKoG3CilVRKJ3kkZ/exec';
@@ -128,9 +128,10 @@ function resolveProjInput(text){
 }
 
 /* ---------------- filters ---------------- */
-const F = { status:new Set(), proj:'', q:'' };
+/* filtro por EXCLUSÃO: todos os status visíveis por padrão; clicar esconde */
+const F = { hidden:new Set(), proj:'', q:'' };
 function passFilter(t){
-  if(F.status.size && !F.status.has(statusOf(t))) return false;
+  if(F.hidden.has(statusOf(t))) return false;
   if(F.proj && String(t.projId).toLowerCase()!==F.proj.toLowerCase()) return false;
   if(F.q){
     const q=F.q.toLowerCase();
@@ -144,10 +145,11 @@ function renderFilterbar(){
   chips.innerHTML='';
   Object.entries(STATUS).forEach(([name,meta])=>{
     const n = S.tasks.filter(t=>statusOf(t)===name).length;
+    const visible = !F.hidden.has(name);
     const b=document.createElement('button');
-    b.className='chip '+(F.status.has(name)?'on ':'')+meta.cls;
+    b.className='chip '+(visible?'on ':'off ')+meta.cls;
     b.innerHTML=`<span class="dot" style="background:${meta.c}"></span>${name} · ${n}`;
-    b.onclick=()=>{ F.status.has(name)?F.status.delete(name):F.status.add(name); renderAll(); };
+    b.onclick=()=>{ F.hidden.has(name)?F.hidden.delete(name):F.hidden.add(name); renderAll(); };
     chips.appendChild(b);
   });
   const sel=$('#f-proj');

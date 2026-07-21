@@ -1,5 +1,5 @@
 /* Service worker — cache-first app shell, so the PWA works offline */
-const CACHE = 'planej-hd-v12';
+const CACHE = 'planej-hd-v13';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './seed.js',
                './manifest.json', './icon-192.png', './icon-512.png'];
 
