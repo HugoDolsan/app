@@ -84,8 +84,9 @@ body.ro .ed-only{display:none!important}
   font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:10px;
   background:var(--surface);color:var(--ink);padding:8px 10px;min-width:0;
 }
-.filter-row2 .sel{flex:1;max-width:52%}
+.filter-row2 .sel{flex:1;max-width:44%}
 .filter-row2 .inp{flex:1}
+.filter-row2 .sel.lanes{flex:0 0 auto;max-width:none;width:76px;padding:8px 6px;font-size:12.5px}
 
 /* ---------- calendar ---------- */
 .view{padding:0 10px}

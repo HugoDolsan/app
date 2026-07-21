@@ -4,7 +4,7 @@
 'use strict';
 
 /* ---------------- state ---------------- */
-const APP_VERSION = 'v13';
+const APP_VERSION = 'v14';
 /* URL do Apps Script embutida — leitura aberta a quem tiver o link do site;
    a escrita (push) é protegida pelo Token de escrita (WRITE_TOKEN no script) */
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw-Oa-CYQ8qafhsbhTF4uhKGU8dHk4Kn21_DvSEMhDyLxpq3YtJeKoG3CilVRKJ3kkZ/exec';
@@ -165,6 +165,11 @@ function renderFilterbar(){
 }
 $('#f-proj').onchange=e=>{ F.proj=e.target.value; renderAll(); };
 $('#f-q').oninput=e=>{ F.q=e.target.value.trim(); renderAll(); };
+$('#f-lanes').onchange=e=>{
+  S.settings.calLanes=parseInt(e.target.value,10);
+  if(!RO){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(_){} }
+  renderAll();
+};
 
 /* ---------------- calendar (screen 1) ---------------- */
 const now=new Date();
@@ -223,12 +228,18 @@ function renderCalendar(){
       week.appendChild(el); dayEls.push({el,iso:dIso});
     }
 
-    /* lay out bars in lanes */
+    /* lay out bars in lanes — quantidade escolhida no seletor "N/dia";
+       barras e fonte encolhem conforme aumenta; muito pequenas viram tiras de cor */
+    const MAXL=Math.max(2,Math.min(8, S.settings.calLanes||4));
+    const laneSp=Math.max(6, Math.floor(58/MAXL));
+    const barH=laneSp-2;
+    const barFs=Math.max(5.5, barH-5);
+    const showTxt=barH>=10;
     const bars=document.createElement('div'); bars.className='cal-bars';
     const wkTasks=visTasks
       .filter(t=>taskInRange(t,wkA,wkB))
       .sort((a,b)=> (a.inicio<b.inicio?-1:a.inicio>b.inicio?1:0));
-    const lanes=[]; const MAXL=3; const overflow={};
+    const lanes=[]; const overflow={};
     wkTasks.forEach(t=>{
       const j=fimPlanejado(t)||t.inicio;
       const c0=Math.max(0, diffDays(wkA, t.inicio<wkA?wkA:t.inicio));
@@ -246,8 +257,9 @@ function renderCalendar(){
         +((t.precisao||'Janela')==='Janela'?' janela':'')
         +(t.inicio>=wkA?' rstart':'')
         +(j<=wkB?' rend':'');
-      bar.style.cssText=`left:calc(${c0}/7*100% + 2px);width:calc(${c1-c0+1}/7*100% - 5px);top:${lane*18}px;background:${meta.c}`;
-      bar.textContent=t.tarefa||'(sem nome)';
+      bar.style.cssText=`left:calc(${c0}/7*100% + 2px);width:calc(${c1-c0+1}/7*100% - 5px);top:${lane*laneSp}px;background:${meta.c};height:${barH}px;line-height:${barH}px;font-size:${barFs}px`;
+      bar.textContent=showTxt ? (t.tarefa||'(sem nome)') : '';
+      bar.title=t.tarefa||'';
       bar.onclick=ev=>{ ev.stopPropagation(); openTaskModal(S.tasks.indexOf(t)); };
       bars.appendChild(bar);
     });
@@ -814,6 +826,7 @@ function renderAll(){
 }
 persist();
 applyZoom();
+$('#f-lanes').value=String(Math.max(2,Math.min(8,S.settings.calLanes||4)));
 if(RO){
   document.body.classList.add('ro');
   $('#ro-banner').hidden=false;
