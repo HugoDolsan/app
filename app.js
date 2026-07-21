@@ -4,7 +4,7 @@
 'use strict';
 
 /* ---------------- state ---------------- */
-const APP_VERSION = 'v14';
+const APP_VERSION = 'v15';
 /* URL do Apps Script embutida — leitura aberta a quem tiver o link do site;
    a escrita (push) é protegida pelo Token de escrita (WRITE_TOKEN no script) */
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw-Oa-CYQ8qafhsbhTF4uhKGU8dHk4Kn21_DvSEMhDyLxpq3YtJeKoG3CilVRKJ3kkZ/exec';
@@ -228,13 +228,14 @@ function renderCalendar(){
       week.appendChild(el); dayEls.push({el,iso:dIso});
     }
 
-    /* lay out bars in lanes — quantidade escolhida no seletor "N/dia";
-       barras e fonte encolhem conforme aumenta; muito pequenas viram tiras de cor */
+    /* lay out bars in lanes — quantidade do seletor "N/dia".
+       Piso de legibilidade (barra 11px / fonte 8px): quando não cabe,
+       a semana cresce em altura — o texto nunca desaparece. */
     const MAXL=Math.max(2,Math.min(8, S.settings.calLanes||4));
-    const laneSp=Math.max(6, Math.floor(58/MAXL));
+    const laneSp=Math.max(13, Math.floor(58/MAXL));
     const barH=laneSp-2;
-    const barFs=Math.max(5.5, barH-5);
-    const showTxt=barH>=10;
+    const barFs=Math.min(9.5, Math.max(8, barH-4));
+    week.style.minHeight=Math.max(84, 28 + MAXL*laneSp)+'px';
     const bars=document.createElement('div'); bars.className='cal-bars';
     const wkTasks=visTasks
       .filter(t=>taskInRange(t,wkA,wkB))
@@ -258,7 +259,7 @@ function renderCalendar(){
         +(t.inicio>=wkA?' rstart':'')
         +(j<=wkB?' rend':'');
       bar.style.cssText=`left:calc(${c0}/7*100% + 2px);width:calc(${c1-c0+1}/7*100% - 5px);top:${lane*laneSp}px;background:${meta.c};height:${barH}px;line-height:${barH}px;font-size:${barFs}px`;
-      bar.textContent=showTxt ? (t.tarefa||'(sem nome)') : '';
+      bar.textContent=t.tarefa||'(sem nome)';
       bar.title=t.tarefa||'';
       bar.onclick=ev=>{ ev.stopPropagation(); openTaskModal(S.tasks.indexOf(t)); };
       bars.appendChild(bar);
