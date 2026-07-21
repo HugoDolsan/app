@@ -4,10 +4,14 @@
 'use strict';
 
 /* ---------------- state ---------------- */
-const APP_VERSION = 'v10';
-/* modo somente-leitura: aberto via link ?share=<url do script> */
-const RO_URL = new URLSearchParams(location.search).get('share') || null;
-const RO = !!RO_URL;
+const APP_VERSION = 'v11';
+/* URL do Apps Script embutida — leitura aberta a quem tiver o link do site;
+   a escrita (push) é protegida pelo Token de escrita (WRITE_TOKEN no script) */
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw-Oa-CYQ8qafhsbhTF4uhKGU8dHk4Kn21_DvSEMhDyLxpq3YtJeKoG3CilVRKJ3kkZ/exec';
+/* modo somente-leitura: link ?share=1 (ou ?share=<url> para outro script) */
+const RO_PARAM = new URLSearchParams(location.search).get('share') || null;
+const RO = !!RO_PARAM;
+const RO_URL = RO ? (RO_PARAM.startsWith('http') ? decodeURIComponent(RO_PARAM) : DEFAULT_SCRIPT_URL) : null;
 const ISO_RE=/^\d{4}-\d{2}-\d{2}$/;
 const isIso=s=>typeof s==='string'&&ISO_RE.test(s);
 const LS_KEY = 'pt_state_v2';
@@ -16,7 +20,7 @@ function freshState(){
   return {
     tasks: JSON.parse(JSON.stringify(SEED.tasks)),
     projects: JSON.parse(JSON.stringify(SEED.projects)),
-    settings: { scriptUrl:'', lastSync:null, dirty:false }
+    settings: { scriptUrl:DEFAULT_SCRIPT_URL, lastSync:null, dirty:false }
   };
 }
 function loadState(){
@@ -29,8 +33,9 @@ function loadState(){
   }catch(e){ return null; }
 }
 let S = RO
-  ? { tasks:[], projects:[], settings:{ scriptUrl: decodeURIComponent(RO_URL), lastSync:null, dirty:false } }
+  ? { tasks:[], projects:[], settings:{ scriptUrl: RO_URL, lastSync:null, dirty:false } }
   : (loadState() || freshState());
+if(!RO && !S.settings.scriptUrl) S.settings.scriptUrl = DEFAULT_SCRIPT_URL;
 function save(){ S.settings.dirty = true; persist(); }
 function persist(){
   if(RO) return;                     /* visualização não grava nada no aparelho */
@@ -674,8 +679,7 @@ $('#btn-sync').onclick=()=>{
 $('#sync-url').onchange=e=>{ S.settings.scriptUrl=e.target.value.trim(); persist(); };
 $('#sync-token').onchange=e=>{ S.settings.writeToken=e.target.value.trim(); persist(); };
 $('#btn-sharelink').onclick=async()=>{
-  if(!S.settings.scriptUrl){ toast('Configure a URL do Apps Script primeiro','err'); return; }
-  const link=location.origin+location.pathname+'?share='+encodeURIComponent(S.settings.scriptUrl);
+  const link=location.origin+location.pathname+'?share=1';
   try{ await navigator.clipboard.writeText(link); toast('Link de leitura copiado ✓'); }
   catch(e){ prompt('Copie o link:', link); }
 };
